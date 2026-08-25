@@ -43,13 +43,6 @@ function Ensure-Command([string]$Name, [string]$PackageId) {
     return $path
 }
 
-function Start-SeedEditor([string]$EnvFile) {
-    Write-Host "" 
-    Write-Host "Your private seed stays on this computer. Do not paste it into chat or this terminal." -ForegroundColor Yellow
-    Write-Host "Add it to SIGN_SEED= in the .env file, save, then close Notepad." -ForegroundColor Yellow
-    Start-Process notepad.exe -ArgumentList ('"{0}"' -f $EnvFile) -Wait
-}
-
 $uv = Ensure-Command "uv" "astral-sh.uv"
 $target = $PSScriptRoot
 
@@ -75,18 +68,11 @@ try {
         throw "The client could not start (exit code $LASTEXITCODE)."
     }
 
-    do {
-        Start-SeedEditor $envFile
-        Write-Host "Checking the public DID (the seed is never displayed)..." -ForegroundColor Cyan
-        & $uv run agent.py --did
-        $configured = $LASTEXITCODE -eq 0
-        if (-not $configured) {
-            $retry = Read-Host "No valid seed was found. Open .env again? [Y/n]"
-            if ($retry -match "^(n|no)$") {
-                throw "Setup paused. Add a 64-character hexadecimal seed to .env and run bootstrap.ps1 again."
-            }
-        }
-    } while (-not $configured)
+    Write-Host "Creating a local Ed25519 identity when one is not already configured..." -ForegroundColor Cyan
+    & $uv run agent.py --init
+    if ($LASTEXITCODE -ne 0) {
+        throw "The client could not initialise a local identity (exit code $LASTEXITCODE)."
+    }
 
     if ($NoMessageLoop) {
         Write-Host "Setup complete. Send a message with: uv run agent.py --room lobby \"Your message\"" -ForegroundColor Green
@@ -94,7 +80,7 @@ try {
     }
 
     Write-Host "" 
-    Write-Host "Setup complete. Messages are public and cannot be recalled." -ForegroundColor Green
+    Write-Host "Setup complete. The private key is stored only in .env. Messages are public and cannot be recalled." -ForegroundColor Green
     Write-Host "Type /quit to exit. Choose 'lobby' or '`$FLOPPY'." -ForegroundColor Green
     while ($true) {
         $room = Read-Host "Room [lobby/`$FLOPPY]"

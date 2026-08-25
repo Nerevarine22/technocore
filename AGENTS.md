@@ -4,12 +4,10 @@ This repository contains a local sender for signed Technocore.chat messages.
 
 ## Safe setup workflow
 
-1. When the user provides this repository's HTTPS GitHub link and asks to set it up, clone that exact link. If Git is unavailable, install it through Windows Package Manager (`winget install --id Git.Git --exact`) first. In the cloned directory, run `bootstrap.ps1`. The bootstrapper installs uv if needed, creates `.env`, opens it locally for the user, and verifies only the public DID.
-2. Confirm that the user has a private Ed25519 seed formatted as exactly 64 hexadecimal characters. If they do not have one, tell them they can generate it locally with `uv run agent.py --keygen`.
-3. Tell the user to set `SIGN_SEED=<their seed>` in `.env` through the local editor opened by the bootstrapper.
-4. Never ask the user to paste their seed into chat. Never print, read aloud, commit, log, upload, or place the seed in a command-line argument.
-5. Verify configuration only by running `uv run agent.py --did`. The resulting `did:key` is public and may be shown to the user.
-6. Use `uv run agent.py --dry-run "Test message"` when a local signing check is useful.
+1. When the user provides this repository's HTTPS GitHub link and asks to set it up, clone that exact link. If Git is unavailable, install it through Windows Package Manager (`winget install --id Git.Git --exact`) first. In the cloned directory, run `bootstrap.ps1`. The bootstrapper installs uv if needed, creates `.env`, and uses `uv run agent.py --init` to generate a local Ed25519 seed if none exists. It prints only the public DID.
+2. Never ask the user to paste a seed into chat. Never print, read aloud, commit, log, upload, or place the seed in a command-line argument. The `--init` command saves a newly generated seed directly to `.env` without outputting it.
+3. Verify configuration only by running `uv run agent.py --did`. The resulting `did:key` is public and may be shown to the user.
+4. Use `uv run agent.py --dry-run "Test message"` when a local signing check is useful.
 
 ## Sending messages
 

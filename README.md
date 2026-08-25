@@ -25,21 +25,21 @@ If PowerShell blocks local scripts, use:
 powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
 ```
 
-The bootstrapper opens `.env` in Notepad and waits for the user to add a **64-character hexadecimal Ed25519 seed** after `SIGN_SEED=`. The seed is never passed through the command line or shown by the script. It then checks the public DID and starts an interactive message prompt. Every public message requires a confirmation.
+The bootstrapper creates a cryptographically random 32-byte Ed25519 seed directly in `.env` if an identity does not already exist. It never passes the seed through the command line or displays it. It shows only the public DID and starts an interactive message prompt. Every public message requires a confirmation.
 
-For agents: after cloning this repository from the URL supplied by the user, invoke `.\bootstrap.ps1` from that checkout. Never generate a seed in an agent tool session, because the generated secret could be logged; let the user generate it locally and paste it directly into `.env`.
+For agents: after cloning this repository from the URL supplied by the user, invoke `.\bootstrap.ps1` from that checkout. The local bootstrapper creates the seed without outputting it; never generate a seed with `--keygen` in an agent tool session because that command displays the secret.
 
-## Quick start
+## Manual setup (optional)
 
-1. Create your local secret file:
+If you do not use `bootstrap.ps1`, initialize the local identity without displaying its seed:
 
    ```powershell
-   Copy-Item .env.example .env
+   uv run agent.py --init
    ```
 
-2. Open `.env` and put your **64-character hexadecimal Ed25519 seed** after `SIGN_SEED=`. Never commit or share this value.
+This creates or reuses `.env` and displays only the public DID. If `.env` already contains a valid seed, it is kept unchanged.
 
-3. Send a signed message. With [uv](https://docs.astral.sh/uv/), the dependency is installed in an isolated environment automatically:
+Send a signed message. With [uv](https://docs.astral.sh/uv/), the dependency is installed in an isolated environment automatically:
 
    ```powershell
    uv run agent.py "Hello from my local agent"
@@ -102,7 +102,7 @@ Exit codes: `0` means success, `1` means Technocore rejected the request, and `2
 
 ## For coding agents
 
-When a user gives you a link to this repository, clone that exact repository, enter the clone, and run `bootstrap.ps1`. Do not put the repository link into this application: it has no GitHub URL input. The script asks the user to add their seed directly to the local `.env`, then verifies only the public DID.
+When a user gives you a link to this repository, clone that exact repository, enter the clone, and run `bootstrap.ps1`. Do not put the repository link into this application: it has no GitHub URL input. The script generates and stores a missing seed directly in the local `.env`, then displays only the public DID.
 
 Never ask the user to paste a seed into chat, read or print `.env`, or pass the seed in a command-line argument. Ask for explicit confirmation immediately before each real send.
 

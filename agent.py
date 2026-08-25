@@ -60,6 +60,7 @@ B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 MULTICODEC_ED25519 = b"\xed\x01"
 MAX_MESSAGE_CHARS = 4096
 GET_URL_SOFT_LIMIT = 7_500
+ENV_SEED_PLACEHOLDER = "PASTE_YOUR_64_HEX_CHARACTER_SEED_HERE"
 
 
 class AgentError(Exception):
@@ -126,6 +127,62 @@ def parse_dotenv(path: Path) -> dict[str, str]:
             value = value[1:-1]
         values[key] = value
     return values
+
+
+def write_dotenv_seed(path: Path, seed: str) -> None:
+    """Atomically store a generated seed without ever displaying it."""
+    try:
+        existing_lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    except OSError as error:
+        raise AgentError(f"Cannot read environment file {path}: {error}") from error
+
+    replacement = f"SIGN_SEED={seed}"
+    seed_line = re.compile(r"^\s*(?:export\s+)?SIGN_SEED\s*=")
+    replaced = False
+    output_lines: list[str] = []
+    for line in existing_lines:
+        if seed_line.match(line):
+            output_lines.append(replacement)
+            replaced = True
+        else:
+            output_lines.append(line)
+    if not replaced:
+        output_lines.extend(
+            [
+                "# Private Ed25519 seed generated locally by Technocore Local Signed Agent.",
+                "# Keep this file private and never commit it.",
+                replacement,
+            ]
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False
+    ) as temporary:
+        temporary.write("\n".join(output_lines) + "\n")
+        temporary_path = Path(temporary.name)
+    try:
+        os.chmod(temporary_path, 0o600)
+        os.replace(temporary_path, path)
+    except OSError as error:
+        temporary_path.unlink(missing_ok=True)
+        raise AgentError(f"Cannot save environment file {path}: {error}") from error
+
+
+def initialise_identity(env_path: Path) -> tuple[Ed25519PrivateKey, bool]:
+    """Return an existing local identity or create one in an empty template."""
+    existing_seed = parse_dotenv(env_path).get("SIGN_SEED", "").strip()
+    if re.fullmatch(r"[0-9a-fA-F]{64}", existing_seed):
+        return key_from_seed(existing_seed.lower()), False
+    if existing_seed and existing_seed != ENV_SEED_PLACEHOLDER:
+        raise AgentError(
+            f"Refusing to replace a non-empty invalid SIGN_SEED in {env_path}. "
+            "Fix or remove that value, then run --init again."
+        )
+
+    seed = secrets.token_hex(32)
+    write_dotenv_seed(env_path, seed)
+    return key_from_seed(seed), True
 
 
 def read_seed(args: argparse.Namespace) -> str:
@@ -298,6 +355,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON result.")
     parser.add_argument("--dry-run", action="store_true", help="Sign locally but do not send a request.")
     parser.add_argument("--did", action="store_true", help="Print the public did:key and exit.")
+    parser.add_argument(
+        "--init",
+        action="store_true",
+        help="Create a local Ed25519 seed in .env if one is not already configured; prints only the public DID.",
+    )
     parser.add_argument("--keygen", action="store_true", help="Generate and print a new seed and its did:key; store the seed yourself.")
     parser.add_argument("--env-file", default=".env", help="Path to .env (default: .env).")
     parser.add_argument("--seed-file", help="Path to a file containing only the 64-character seed.")
@@ -307,9 +369,9 @@ def parse_args() -> argparse.Namespace:
     arguments = parser.parse_args()
     if arguments.timeout <= 0:
         parser.error("--timeout must be positive")
-    modes = sum((bool(arguments.message), arguments.stdin, arguments.did, arguments.keygen))
+    modes = sum((bool(arguments.message), arguments.stdin, arguments.did, arguments.init, arguments.keygen))
     if modes != 1:
-        parser.error("provide exactly one of MESSAGE, --stdin, --did, or --keygen")
+        parser.error("provide exactly one of MESSAGE, --stdin, --did, --init, or --keygen")
     return arguments
 
 
@@ -319,6 +381,10 @@ def output(args: argparse.Namespace, payload: dict[str, Any], success: bool) -> 
     elif success:
         if "did" in payload and len(payload) == 1:
             print(payload["did"])
+        elif "created" in payload:
+            status = "Created and saved" if payload["created"] else "Using existing"
+            print(f"{status} local Ed25519 identity.")
+            print(f"DID: {payload['did']}")
         elif "seed" in payload:
             print(f"seed: {payload['seed']}")
             print(f"did:  {payload['did']}")
@@ -337,6 +403,11 @@ def output(args: argparse.Namespace, payload: dict[str, Any], success: bool) -> 
 def main() -> int:
     args = parse_args()
     try:
+        if args.init:
+            key, created = initialise_identity(Path(args.env_file).expanduser())
+            output(args, {"did": did_for(key), "created": created}, True)
+            return 0
+
         if args.keygen:
             seed = secrets.token_hex(32)
             output(args, {"seed": seed, "did": did_for(key_from_seed(seed))}, True)
