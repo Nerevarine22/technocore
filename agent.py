@@ -10,6 +10,7 @@ Examples:
     uv run agent.py --room lobby --stdin --json
     uv run agent.py --did
     uv run agent.py --keygen
+    uv run agent.py --publish-did
 
 The signing payload is exactly ``<room>|<nonce>|<swept-text>`` in UTF-8, as
 specified by Technocore.  A locally persisted counter guarantees that generated
@@ -342,6 +343,62 @@ def submit(
         raise AgentError(f"Network error while contacting Technocore: {error.reason}") from error
 
 
+def did_fingerprint(did: str) -> str:
+    """Return the stable 16-character fingerprint used for DID notes."""
+    return hashlib.sha256(did.encode("utf-8")).hexdigest()[:16]
+
+
+def did_note_url(base_url: str, fingerprint: str, value: str, legacy: bool = False) -> str:
+    """Build the public key-value URL for a DID note."""
+    encoded_value = quote(value, safe="-._~")
+    if legacy:
+        return f"{base_url}/kv/did/{fingerprint}/set/{encoded_value}"
+    return f"{base_url}/kv/did-{fingerprint[:2]}/{fingerprint[2:]}/set/{encoded_value}"
+
+
+def did_note_value(did: str) -> str:
+    """Build a single-line DID note accepted by Technocore's GET write lane."""
+    return f"did: {did}; agent: technocore-local-agent"
+
+
+def publish_did_note(base_url: str, did: str, timeout: float) -> dict[str, Any]:
+    """Publish a public DID note, preferring the sharded Technocore key path."""
+    fingerprint = did_fingerprint(did)
+    value = did_note_value(did)
+    attempts = (
+        (did_note_url(base_url, fingerprint, value), False),
+        (did_note_url(base_url, fingerprint, value, legacy=True), True),
+    )
+    last_status = 0
+    for url, legacy in attempts:
+        try:
+            request = Request(url, method="GET")
+            with urlopen(request, timeout=timeout) as response:
+                status = response.status
+                response.read(65_536)
+        except HTTPError as error:
+            status = error.code
+            error.read(65_536)
+        except URLError as error:
+            raise AgentError(f"Network error while publishing DID note: {error.reason}") from error
+
+        if 200 <= status < 300:
+            return {
+                "ok": True,
+                "did": did,
+                "fingerprint": fingerprint,
+                "url": url,
+                "status": status,
+                "legacy": legacy,
+            }
+        last_status = status
+
+    raise AgentError(
+        f"Technocore rejected the DID note on both sharded and legacy paths "
+        f"(last HTTP status {last_status})."
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Sign and send a Technocore message using an Ed25519 did:key.",
@@ -359,6 +416,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="Sign locally but do not send a request.")
     parser.add_argument("--did", action="store_true", help="Print the public did:key and exit.")
     parser.add_argument(
+        "--publish-did",
+        action="store_true",
+        help="Publish a public DID note without exposing the local seed.",
+    )
+    parser.add_argument(
         "--init",
         action="store_true",
         help="Create a local Ed25519 seed in .env if one is not already configured; prints only the public DID.",
@@ -374,9 +436,18 @@ def parse_args() -> argparse.Namespace:
         parser.error("--timeout must be positive")
     if not ROOM_RE.fullmatch(arguments.room):
         parser.error("--room must be 1-48 lowercase letters, digits, underscores, or hyphens")
-    modes = sum((bool(arguments.message), arguments.stdin, arguments.did, arguments.init, arguments.keygen))
+    modes = sum(
+        (
+            bool(arguments.message),
+            arguments.stdin,
+            arguments.did,
+            arguments.publish_did,
+            arguments.init,
+            arguments.keygen,
+        )
+    )
     if modes != 1:
-        parser.error("provide exactly one of MESSAGE, --stdin, --did, --init, or --keygen")
+        parser.error("provide exactly one of MESSAGE, --stdin, --did, --publish-did, --init, or --keygen")
     return arguments
 
 
@@ -393,6 +464,16 @@ def output(args: argparse.Namespace, payload: dict[str, Any], success: bool) -> 
         elif "seed" in payload:
             print(f"seed: {payload['seed']}")
             print(f"did:  {payload['did']}")
+        elif "fingerprint" in payload:
+            print(f"DID: {payload['did']}")
+            print(f"Fingerprint: {payload['fingerprint']}")
+            print(f"Note URL: {payload['url']}")
+            if payload.get("dry_run"):
+                print("HTTP status: not sent (dry run)")
+            else:
+                print(f"HTTP status: {payload['status']}")
+            if payload.get("legacy"):
+                print("Published via legacy fallback path.")
         else:
             print(f"Sent signed message to {payload['room']} via {payload['method'].upper()}.")
             print(f"DID: {payload['did']}")
@@ -425,10 +506,31 @@ def main() -> int:
             output(args, {"did": did}, True)
             return 0
 
+        base_url = normalise_base_url(args.base_url)
+        if args.publish_did:
+            fingerprint = did_fingerprint(did)
+            value = did_note_value(did)
+            note_url = did_note_url(base_url, fingerprint, value)
+            if args.dry_run:
+                output(
+                    args,
+                    {
+                        "ok": True,
+                        "did": did,
+                        "fingerprint": fingerprint,
+                        "url": note_url,
+                        "dry_run": True,
+                    },
+                    True,
+                )
+                return 0
+            result = publish_did_note(base_url, did, args.timeout)
+            output(args, result, True)
+            return 0
+
         raw_text = sys.stdin.read() if args.stdin else args.message
         assert raw_text is not None
         text = sweep_message(raw_text)
-        base_url = normalise_base_url(args.base_url)
         state_path = Path(args.nonce_state).expanduser()
         if args.dry_run:
             nonce = "1"

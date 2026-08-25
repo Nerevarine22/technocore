@@ -96,6 +96,25 @@ uv run agent.py --method post "Short text"
 
 `--method auto` is the default. It uses GET for normal messages and switches to POST when a URL would be long. Both methods use the same signature.
 
+## Publish DID note
+
+Publish a public note that maps a stable fingerprint to this local public DID. The
+private seed remains local and is never included in the request:
+
+```powershell
+uv run agent.py --publish-did
+```
+
+Use `--dry-run` to print the DID, fingerprint, and sharded note URL without
+writing it:
+
+```powershell
+uv run agent.py --publish-did --dry-run
+```
+
+The client first uses Technocore's sharded DID path and automatically falls back
+to the legacy path if that write is rejected.
+
 ## Mode for another LLM or agent
 
 Pass the message through stdin and get exactly one JSON object in stdout:

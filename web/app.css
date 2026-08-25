@@ -13,6 +13,7 @@ h1, h2, p { margin-top: 0; } h1 { margin-bottom: 0; font-size: clamp(1.35rem, 3v
 .identity-card { display: flex; align-items: center; justify-content: space-between; min-height: 130px; padding: 25px 28px; margin-bottom: 20px; border-radius: 18px; overflow: hidden; }
 .identity-copy { min-width: 0; } .did { margin: 8px 0; color: #9be7ff; font: .9rem ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
 .helper { margin: 0; color: #9fb4ca; font-size: .85rem; line-height: 1.55; } code { color: #e0ebf6; }
+.identity-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 11px; margin-top: 16px; } .identity-actions .secondary { padding: 9px 12px; } .identity-actions .secondary:disabled { cursor: wait; opacity: .55; } .identity-actions .published { color: #bff9d8; background: #103f32; border-color: #398a70; } .did-note-result { width: 100%; padding: 10px 12px; color: #bff9d8; background: #103428cf; border: 1px solid #347661; border-radius: 9px; font-size: .82rem; line-height: 1.5; overflow-wrap: anywhere; } .did-note-result a { color: #8cf5dd; font-weight: 750; }
 .shield { display: grid; flex: none; place-items: center; width: 58px; height: 58px; margin-left: 22px; color: #8cf5dd; border: 1px solid #47778a; border-radius: 50%; font-size: 1.8rem; }
 .workspace { display: grid; grid-template-columns: minmax(280px, .78fr) minmax(0, 1.42fr); gap: 20px; }
 .panel { border-radius: 18px; padding: 23px; } .panel-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 19px; }

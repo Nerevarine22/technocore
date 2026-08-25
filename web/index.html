@@ -23,6 +23,10 @@
           <p class="section-label">ACTIVE IDENTITY</p>
           <p id="did" class="did">Loading identity…</p>
           <p class="helper">Your private seed stays on this device in <code>.env</code>. It is never shown in this browser.</p>
+          <div class="identity-actions">
+            <button class="secondary" id="publish-did">Publish DID note</button>
+            <div id="did-note-result" class="did-note-result" hidden aria-live="polite"></div>
+          </div>
         </div>
         <div class="shield" aria-hidden="true">⌘</div>
       </section>
@@ -68,6 +72,13 @@
       <h2>Send signed message?</h2>
       <p>This publishes your message in <strong id="confirm-room"></strong>. Public messages cannot be recalled.</p>
       <menu><button class="secondary" id="cancel">Cancel</button><button id="confirm-send">Confirm &amp; send</button></menu>
+    </dialog>
+    <dialog id="confirm-note">
+      <div class="dialog-icon" aria-hidden="true">⌘</div>
+      <p class="section-label">PUBLIC ACTION</p>
+      <h2>Publish DID note?</h2>
+      <p>This publishes your public DID and agent label on Technocore. Your private seed remains on this device.</p>
+      <menu><button class="secondary" id="cancel-note">Cancel</button><button id="confirm-publish-did">Confirm &amp; publish</button></menu>
     </dialog>
     <script src="/app.js"></script>
   </body>

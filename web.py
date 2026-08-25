@@ -68,6 +68,11 @@ class App:
             "receipt": self.find_receipt(base_url, room, text, nonce),
         }
 
+    def publish_did_note(self) -> dict[str, Any]:
+        """Publish only this local identity's public DID note."""
+        base_url = agent.normalise_base_url(agent.DEFAULT_BASE_URL)
+        return agent.publish_did_note(base_url, self.did, 30.0)
+
     def list_rooms(self) -> list[str]:
         """Return only room names; topics and all other remote text stay untrusted."""
         try:
@@ -143,11 +148,17 @@ def handler_for(app: App) -> type[BaseHTTPRequestHandler]:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path != "/api/send":
+            if self.path not in {"/api/send", "/api/publish-did"}:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
                 return
             if not secrets.compare_digest(self.headers.get("X-CSRF-Token", ""), app.csrf_token):
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "Invalid local request token."})
+                return
+            if self.path == "/api/publish-did":
+                try:
+                    self.send_json(HTTPStatus.OK, app.publish_did_note())
+                except agent.AgentError as error:
+                    self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
                 return
             try:
                 length = int(self.headers.get("Content-Length", ""))

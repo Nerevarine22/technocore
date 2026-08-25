@@ -3,6 +3,8 @@ const byId = (id) => document.getElementById(id);
 const notice = byId("notice");
 const send = byId("send");
 const dialog = byId("confirm");
+const noteDialog = byId("confirm-note");
+const publishDid = byId("publish-did");
 const noticeText = byId("notice-text");
 
 const setNotice = (message, success = false) => {
@@ -57,6 +59,44 @@ send.onclick = () => {
 };
 
 byId("cancel").onclick = () => dialog.close();
+
+publishDid.onclick = () => noteDialog.showModal();
+
+byId("cancel-note").onclick = () => noteDialog.close();
+
+byId("confirm-publish-did").onclick = async () => {
+  noteDialog.close();
+  publishDid.disabled = true;
+  setNotice("Publishing your public DID note…");
+  try {
+    const response = await fetch("/api/publish-did", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not publish the DID note.");
+    const result = byId("did-note-result");
+    const link = document.createElement("a");
+    link.href = data.url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Open DID note";
+    result.replaceChildren(
+      document.createTextNode("✓ Technocore confirmed the DID note. "),
+      document.createTextNode(`Fingerprint ${data.fingerprint}; HTTP ${data.status}. `),
+      link,
+    );
+    result.hidden = false;
+    publishDid.textContent = "✓ DID note published";
+    publishDid.classList.add("published");
+    const fallback = data.legacy ? " via the legacy fallback path" : "";
+    setNotice(`DID note published successfully${fallback}.`, true);
+  } catch (error) {
+    setNotice(error.message);
+  } finally {
+    publishDid.disabled = false;
+  }
+};
 
 byId("confirm-send").onclick = async () => {
   dialog.close();
