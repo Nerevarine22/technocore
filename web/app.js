@@ -3,6 +3,12 @@ const byId = (id) => document.getElementById(id);
 const notice = byId("notice");
 const send = byId("send");
 const dialog = byId("confirm");
+const noticeText = byId("notice-text");
+
+const setNotice = (message, success = false) => {
+  notice.className = success ? "notice success" : "notice";
+  noticeText.textContent = message;
+};
 
 byId("refresh-rooms").onclick = async () => {
   const button = byId("refresh-rooms");
@@ -36,14 +42,14 @@ fetch("/api/status")
     byId("did").textContent = data.did;
   })
   .catch(() => {
-    notice.textContent = "Could not load local status.";
+    setNotice("Could not load local status.");
   });
 
 send.onclick = () => {
   const room = byId("room").value.trim();
   const text = byId("text").value;
   if (!room || !text.trim()) {
-    notice.textContent = "Enter a room and a message.";
+    setNotice("Enter a room and a message.");
     return;
   }
   byId("confirm-room").textContent = room;
@@ -55,7 +61,7 @@ byId("cancel").onclick = () => dialog.close();
 byId("confirm-send").onclick = async () => {
   dialog.close();
   send.disabled = true;
-  notice.textContent = "Signing and sending…";
+  setNotice("Signing your message locally and sending it…");
   try {
     const response = await fetch("/api/send", {
       method: "POST",
@@ -65,12 +71,15 @@ byId("confirm-send").onclick = async () => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Send failed.");
     const receipt = data.receipt ? ` Read-back receipt confirmed in the room (seq ${data.receipt.seq}).` : " The server accepted the message; a read-back receipt is not available yet.";
-    notice.className = "notice success";
-    notice.textContent = `✓ Message signed and accepted by the server (HTTP ${data.status}) in ${data.room}.${receipt}`;
+    setNotice(`Message signed and accepted by the server (HTTP ${data.status}) in ${data.room}.${receipt}`, true);
     byId("text").value = "";
   } catch (error) {
-    notice.textContent = error.message;
+    setNotice(error.message);
   } finally {
     send.disabled = false;
   }
+};
+
+byId("text").oninput = () => {
+  byId("character-count").textContent = `${byId("text").value.length} / 4096`;
 };

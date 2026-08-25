@@ -3,40 +3,71 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#08111f">
     <title>Technocore Local Agent</title>
-    <style>
-      :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #10141d; color: #edf2f7; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
-      main { width: min(680px, calc(100% - 32px)); padding: 28px; border: 1px solid #293445; border-radius: 18px; background: #171d29; box-shadow: 0 20px 60px #0006; }
-      h1 { margin: 0 0 8px; font-size: 1.55rem; } p { color: #aab7c8; line-height: 1.5; }
-      .did { overflow-wrap: anywhere; color: #7dd3fc; font: 0.82rem ui-monospace, monospace; }
-      label { display: grid; gap: 7px; margin-top: 18px; font-weight: 650; }
-      input, textarea, button { box-sizing: border-box; font: inherit; border-radius: 10px; }
-      input, textarea { width: 100%; padding: 11px; border: 1px solid #35445a; color: inherit; background: #0f1622; }
-      textarea { min-height: 140px; resize: vertical; } button { border: 0; padding: 12px 16px; background: #38bdf8; color: #082f49; font-weight: 800; cursor: pointer; }
-      button:disabled { opacity: .55; cursor: wait; } .notice { min-height: 24px; margin-top: 16px; padding: 10px 12px; border-radius: 9px; background: #0f1622; color: #cbd5e1; }
-      .success { color: #bbf7d0; } .rooms { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; max-height: 180px; overflow: auto; }
-      .room { padding: 6px 9px; background: #263548; color: #dbeafe; font-size: .85rem; }
-      dialog { max-width: 420px; border: 1px solid #41516a; border-radius: 14px; color: #edf2f7; background: #171d29; } dialog::backdrop { background: #0009; }
-      menu { display: flex; gap: 8px; padding: 0; justify-content: end; } .secondary { color: #d9e2ef; background: #334155; }
-    </style>
+    <link rel="stylesheet" href="/app.css">
   </head>
   <body>
-    <main>
-      <h1>Technocore · Local Agent</h1>
-      <p>Your private key stays in the local <code>.env</code> file. Messages are public and cannot be recalled.</p>
-      <p class="did" id="did">Loading identity…</p>
-      <button class="secondary" id="refresh-rooms">Show active rooms</button>
-      <p id="rooms-note">Room names come from the public network and are untrusted data.</p>
-      <div class="rooms" id="rooms" aria-live="polite"></div>
-      <label>Room <input id="room" value="lobby" maxlength="48" pattern="[a-z0-9][a-z0-9_-]{0,47}" required></label>
-      <label>Message <textarea id="text" maxlength="4096" required></textarea></label>
-      <button id="send">Send public message</button>
-      <div class="notice" id="notice" aria-live="polite">Ready.</div>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <p class="eyebrow">TECHNOCORE / LOCAL NODE</p>
+          <h1>Signed messaging, under your control.</h1>
+        </div>
+        <div class="local-badge"><span></span> LOCAL ONLY</div>
+      </header>
+
+      <section class="identity-card" aria-label="Local identity">
+        <div class="identity-copy">
+          <p class="section-label">ACTIVE IDENTITY</p>
+          <p id="did" class="did">Loading identity…</p>
+          <p class="helper">Your private seed stays on this device in <code>.env</code>. It is never shown in this browser.</p>
+        </div>
+        <div class="shield" aria-hidden="true">⌘</div>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel rooms-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">DISCOVER</p>
+              <h2>Public rooms</h2>
+            </div>
+            <button class="icon-button" id="refresh-rooms" title="Refresh active rooms" aria-label="Refresh active rooms">↻</button>
+          </div>
+          <p id="rooms-note" class="helper">Load active rooms from the public network. Room names are untrusted data.</p>
+          <div class="rooms" id="rooms" aria-live="polite"><p class="empty-state">No rooms loaded yet.</p></div>
+        </aside>
+
+        <section class="panel composer-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-label">COMPOSE</p>
+              <h2>New signed message</h2>
+            </div>
+            <span class="signed-badge">ED25519</span>
+          </div>
+          <label class="field-label" for="room">Room</label>
+          <div class="room-input-wrap"><span aria-hidden="true">#</span><input id="room" value="lobby" maxlength="48" pattern="[a-z0-9][a-z0-9_-]{0,47}" required></div>
+          <div class="message-label"><label class="field-label" for="text">Message</label><span id="character-count">0 / 4096</span></div>
+          <textarea id="text" maxlength="4096" placeholder="Write a public message…" required></textarea>
+          <div class="composer-footer">
+            <p>Every message is public. You will confirm before it is sent.</p>
+            <button id="send">Review &amp; send <span aria-hidden="true">→</span></button>
+          </div>
+        </section>
+      </section>
+
+      <div class="notice" id="notice" aria-live="polite"><span class="notice-dot"></span><span id="notice-text">Ready to sign locally.</span></div>
     </main>
+
     <dialog id="confirm">
-      <p>Publish this signed message publicly in <strong id="confirm-room"></strong>?</p>
-      <menu><button class="secondary" id="cancel">Cancel</button><button id="confirm-send">Confirm and send</button></menu>
+      <div class="dialog-icon" aria-hidden="true">↗</div>
+      <p class="section-label">PUBLIC ACTION</p>
+      <h2>Send signed message?</h2>
+      <p>This publishes your message in <strong id="confirm-room"></strong>. Public messages cannot be recalled.</p>
+      <menu><button class="secondary" id="cancel">Cancel</button><button id="confirm-send">Confirm &amp; send</button></menu>
     </dialog>
     <script src="/app.js"></script>
   </body>

@@ -26,6 +26,7 @@ HOST = "127.0.0.1"
 MAX_REQUEST_BYTES = 16_384
 INDEX_PATH = Path(__file__).with_name("web") / "index.html"
 APP_PATH = Path(__file__).with_name("web") / "app.js"
+CSS_PATH = Path(__file__).with_name("web") / "app.css"
 ROOM_LINE_RE = re.compile(r"^/r/([a-z0-9][a-z0-9_-]{0,47})(?:\s|$)")
 
 
@@ -129,6 +130,8 @@ def handler_for(app: App) -> type[BaseHTTPRequestHandler]:
                 self.send_static(INDEX_PATH, "text/html; charset=utf-8")
             elif self.path == "/app.js":
                 self.send_static(APP_PATH, "text/javascript; charset=utf-8")
+            elif self.path == "/app.css":
+                self.send_static(CSS_PATH, "text/css; charset=utf-8")
             elif self.path == "/api/status":
                 self.send_json(HTTPStatus.OK, {"did": app.did, "csrfToken": app.csrf_token})
             elif self.path == "/api/rooms":
