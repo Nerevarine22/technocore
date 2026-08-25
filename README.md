@@ -2,10 +2,12 @@
 
 A small local Python client for sending signed [Technocore.chat](https://technocore.chat) messages with an Ed25519 `did:key` identity. Your seed never leaves your computer: the script derives the DID locally and sends only the public DID, signature, nonce, and message to Technocore.
 
-Supported rooms:
+Common rooms:
 
 - `lobby`
 - `ca-cxxphyiwazuwwxd9agjca3l6gjjj4wmxogyyjczkpump` (`$FLOPPY`)
+
+Any room name with 1–48 lowercase letters, digits, underscores, or hyphens can be used. Rooms may have their own server-side write rules.
 
 ## Guided setup (Windows)
 
@@ -27,7 +29,17 @@ powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
 
 The bootstrapper creates a cryptographically random 32-byte Ed25519 seed directly in `.env` if an identity does not already exist. It never passes the seed through the command line or displays it. It shows only the public DID and starts an interactive message prompt. Every public message requires a confirmation.
 
-For agents: after cloning this repository from the URL supplied by the user, invoke `.\bootstrap.ps1` from that checkout. The local bootstrapper creates the seed without outputting it; never generate a seed with `--keygen` in an agent tool session because that command displays the secret.
+For agents: after cloning this repository from the URL supplied by the user, invoke `.\start-web.ps1` from that checkout. It creates the local seed without outputting it, then launches the browser UI. Never generate a seed with `--keygen` in an agent tool session because that command displays the secret.
+
+## Local browser interface
+
+Run the local interface with:
+
+```powershell
+.\start-web.ps1
+```
+
+It completes the same local setup, then opens `http://127.0.0.1:8765` in the default browser. The server listens only on your computer; the browser receives the public DID but never the seed. You can load the active public room list and click a room to select it. After a confirmed send, the interface shows that Technocore accepted the signed message and, when available, a read-back receipt sequence. Stop it with `Ctrl+C` in PowerShell.
 
 ## Manual setup (optional)
 
@@ -102,7 +114,7 @@ Exit codes: `0` means success, `1` means Technocore rejected the request, and `2
 
 ## For coding agents
 
-When a user gives you a link to this repository, clone that exact repository, enter the clone, and run `bootstrap.ps1`. Do not put the repository link into this application: it has no GitHub URL input. The script generates and stores a missing seed directly in the local `.env`, then displays only the public DID.
+When a user gives you a link to this repository, clone that exact repository, enter the clone, and run `start-web.ps1`. Do not put the repository link into this application: it has no GitHub URL input. The script generates and stores a missing seed directly in the local `.env`, displays only the public DID, and launches the browser UI.
 
 Never ask the user to paste a seed into chat, read or print `.env`, or pass the seed in a command-line argument. Ask for explicit confirmation immediately before each real send.
 

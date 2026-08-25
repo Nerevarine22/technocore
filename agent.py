@@ -52,7 +52,6 @@ for _stream in (sys.stdout, sys.stderr):
 DEFAULT_BASE_URL = "https://technocore.chat"
 DEFAULT_ROOM = "lobby"
 FLOPPY_ROOM = "ca-cxxphyiwazuwwxd9agjca3l6gjjj4wmxogyyjczkpump"
-ALLOWED_ROOMS = (DEFAULT_ROOM, FLOPPY_ROOM)
 ROOM_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
 NONCE_RE = re.compile(r"^[0-9]{1,19}$")
 INVISIBLE_CATEGORIES = {"Cc", "Cf", "Cs", "Co", "Zl", "Zp"}
@@ -349,7 +348,11 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("message", nargs="?", help="Message text for manual use.")
-    parser.add_argument("--room", choices=ALLOWED_ROOMS, default=DEFAULT_ROOM, help="Target room (default: lobby).")
+    parser.add_argument(
+        "--room",
+        default=DEFAULT_ROOM,
+        help="Target room: 1-48 lowercase letters, digits, _ or - (default: lobby).",
+    )
     parser.add_argument("--stdin", action="store_true", help="Read one message from standard input (agent-friendly).")
     parser.add_argument("--method", choices=("auto", "get", "post"), default="auto", help="Transport (default: auto).")
     parser.add_argument("--json", action="store_true", help="Emit one machine-readable JSON result.")
@@ -369,6 +372,8 @@ def parse_args() -> argparse.Namespace:
     arguments = parser.parse_args()
     if arguments.timeout <= 0:
         parser.error("--timeout must be positive")
+    if not ROOM_RE.fullmatch(arguments.room):
+        parser.error("--room must be 1-48 lowercase letters, digits, underscores, or hyphens")
     modes = sum((bool(arguments.message), arguments.stdin, arguments.did, arguments.init, arguments.keygen))
     if modes != 1:
         parser.error("provide exactly one of MESSAGE, --stdin, --did, --init, or --keygen")

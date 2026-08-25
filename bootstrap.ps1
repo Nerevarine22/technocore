@@ -81,16 +81,16 @@ try {
 
     Write-Host "" 
     Write-Host "Setup complete. The private key is stored only in .env. Messages are public and cannot be recalled." -ForegroundColor Green
-    Write-Host "Type /quit to exit. Choose 'lobby' or '`$FLOPPY'." -ForegroundColor Green
+    Write-Host "Type /quit to exit. Enter any room name with lowercase letters, digits, _ or - (up to 48 characters)." -ForegroundColor Green
     while ($true) {
-        $room = Read-Host "Room [lobby/`$FLOPPY]"
+        $room = Read-Host "Room [lobby]"
         if ($room -eq "/quit") { break }
-        if ($room -ne "lobby" -and $room -ne "FLOPPY") {
-            Write-Host "Use lobby or FLOPPY." -ForegroundColor Yellow
-            continue
+        if ([string]::IsNullOrWhiteSpace($room)) {
+            $room = "lobby"
         }
-        if ($room -eq "FLOPPY") {
-            $room = "ca-cxxphyiwazuwwxd9agjca3l6gjjj4wmxogyyjczkpump"
+        if ($room -notmatch "^[a-z0-9][a-z0-9_-]{0,47}$") {
+            Write-Host "Invalid room name. Use 1-48 lowercase letters, digits, _ or -." -ForegroundColor Yellow
+            continue
         }
 
         $message = Read-Host "Message"
