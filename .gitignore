@@ -1,0 +1,12 @@
+# Private key material and local state
+.env
+.env.*
+!.env.example
+*.seed
+.technocore-nonces.json
+.technocore-nonces.json.lock
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
